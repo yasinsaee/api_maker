@@ -1,4 +1,4 @@
-module github.com/yasinsaee/api_maker.git
+module github.com/yasinsaee/api_maker
 
 go 1.22.1
 
