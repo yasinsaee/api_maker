@@ -61,6 +61,46 @@ func (a APIService) Create(c echo.Context, model Model, form Form) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+func (a APIService) Edit(c echo.Context, model Model, form Form) error {
+	var (
+		err error
+	)
+
+	id := c.Param("id")
+	resp := new(Response)
+
+	if err = model.GetOne(id); err != nil {
+		resp.Code = http.StatusBadRequest
+		resp.ErrorMessage = fmt.Sprintf("can not find any %s", a.Name)
+		return c.JSON(http.StatusBadRequest, resp)
+	}
+
+	if err = BindStruct(c, form, model); err != nil {
+		resp.ErrorMessage = err.Error()
+		resp.Code = http.StatusBadRequest
+		return c.JSON(http.StatusBadRequest, resp)
+	}
+
+	if err = form.Bind(model); err != nil {
+		resp.ErrorMessage = err.Error()
+		resp.Code = http.StatusBadRequest
+		return c.JSON(http.StatusBadRequest, resp)
+	}
+
+	if err := model.Save(); err != nil {
+		resp.Code = http.StatusInternalServerError
+		resp.ErrorMessage = fmt.Sprintf("Can not edit %s", a.Name)
+		return c.JSON(http.StatusInternalServerError, resp)
+	}
+
+	resp.SuccessMessage = fmt.Sprintf("Successfully edit %s", a.Name)
+	resp.Code = http.StatusOK
+	resp.Data = echo.Map{
+		a.Name: model,
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
 func (a APIService) View(c echo.Context, model Model) error {
 	var (
 		err error
