@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	apimaker "github.com/yasinsaee/api_maker"
 	"github.com/yasinsaee/api_maker/sample/custom"
 	"github.com/yasinsaee/api_maker/sample/product"
@@ -9,6 +11,10 @@ import (
 
 func main() {
 	ec := echo.New()
+	ec.Validator = &apimaker.CustomValidator{Validator: validator.New()}
+	// Use Echo's default middleware
+	ec.Use(middleware.Logger())
+	ec.Use(middleware.Recover())
 
 	proGP := ec.Group("/product")
 	apiService := apimaker.NewAPIService("product", proGP, ec.Validator, ec.Logger)
