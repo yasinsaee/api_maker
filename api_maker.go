@@ -1,6 +1,7 @@
 package apimaker
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -23,28 +24,61 @@ func NewAPIService(name string, group *echo.Group, validator echo.Validator, log
 	}
 }
 
-func (a APIService) Create(c echo.Context, model Model, form Form) error {
+type ServiceType struct {
+	Name string
+}
+
+type ServiceRequest struct {
+	Context    echo.Context
+	Model      Model
+	Form       Form
+	AfterSave  AfterSave
+	BeforeSave BeforeSave
+}
+
+func (a APIService) RequestService(serviceType string, service ServiceRequest) error {
+	if serviceType == CreateServiceRequest {
+		return service.Create(a)
+	} else if serviceType == UpdateServiceRequest {
+		// return service.Create(a)
+	}
+	return errors.New("please select a service type")
+}
+
+func (createService ServiceRequest) Create(a APIService) error {
 	var (
 		err error
 	)
 
-	if err = BindStruct(c, form, model); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form")
+	if err = BindStruct(createService.Context, createService.Form, createService.Model); err != nil {
+		return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, "failed to bind form")
 	}
 
-	if err = form.Bind(model); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form data")
+	if err = createService.Form.Bind(createService.Model); err != nil {
+		return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, "failed to bind form data")
 	}
 
-	if err := model.Save(); err != nil {
-		return a.ErrorResponse(c, http.StatusInternalServerError, err, fmt.Sprintf("cannot add %s", a.Name))
+	if createService.BeforeSave != nil {
+		if err = createService.BeforeSave(createService.Model); err != nil {
+			return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function beforesave, error : %s ", err.Error()))
+		}
+	}
+
+	if err = createService.Model.Save(); err != nil {
+		return a.ErrorResponse(createService.Context, http.StatusInternalServerError, err, fmt.Sprintf("cannot add %s", a.Name))
+	}
+
+	if createService.AfterSave != nil {
+		if err = createService.AfterSave(createService.Model); err != nil {
+			return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function aftersave, error : %s ", err.Error()))
+		}
 	}
 
 	return SuccessResponse(
-		c,
+		createService.Context,
 		http.StatusOK,
 		fmt.Sprintf("successfully added %s", a.Name),
-		echo.Map{a.Name: model},
+		echo.Map{a.Name: createService.Model},
 		MetaData{},
 	)
 }

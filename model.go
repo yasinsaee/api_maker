@@ -7,3 +7,8 @@ type Model interface {
 	List(filter Filter, pfilter Pagination) (int, int, interface{}, error)
 	Remove(id interface{}) error
 }
+
+type (
+	AfterSave  func(model Model) error
+	BeforeSave func(model Model) error
+)

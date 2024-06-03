@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/labstack/echo/v4"
 	apimaker "github.com/yasinsaee/api_maker"
+	"github.com/yasinsaee/api_maker/sample/custom"
 	"github.com/yasinsaee/api_maker/sample/product"
 )
 
@@ -16,10 +17,15 @@ func main() {
 		pro := new(product.Product)
 		form := new(product.AddProductForm)
 
-		if err := apiService.Create(c, pro, form); err != nil {
-			return err
+		createServiceReq := apimaker.ServiceRequest{
+			Context:    c,
+			Model:      pro,
+			Form:       form,
+			AfterSave:  custom.MyCustomAfterSaveFunction,
+			BeforeSave: custom.MyCustomBeforeSaveFunction,
 		}
-		return nil
+
+		return apiService.RequestService(apimaker.CreateServiceRequest, createServiceReq)
 	})
 
 	proGP.PUT("/edit/:id", func(c echo.Context) error {
