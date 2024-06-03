@@ -10,6 +10,7 @@
 package product
 
 import (
+	"errors"
 	"fmt"
 
 	apimaker "github.com/yasinsaee/api_maker"
@@ -17,7 +18,16 @@ import (
 
 // AddProductForm defines the fields required to add a new product.
 type AddProductForm struct {
-	Name string `json:"name" validate:"required"`
+	Name  string  `json:"name" validate:"required"`
+	Price float64 `json:"price" validate:"required"`
+}
+
+// Validate implements the CustomValidator interface for custom validation logic
+func (a AddProductForm) Validate() error {
+	if a.Price <= 0 {
+		return errors.New("price must be greater than 0")
+	}
+	return nil
 }
 
 // Bind binds the form data to the Product model.

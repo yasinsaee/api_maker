@@ -4,21 +4,18 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
 )
 
 type APIService struct {
 	Name      string
 	GroupName echo.Group
-	Validator *validator.Validate
 }
 
-func NewAPIService(name string, group_name echo.Group, validator *validator.Validate) *APIService {
+func NewAPIService(name string, group_name echo.Group) *APIService {
 	return &APIService{
 		Name:      name,
 		GroupName: group_name,
-		Validator: validator,
 	}
 }
 

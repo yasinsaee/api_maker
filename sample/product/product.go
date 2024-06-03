@@ -18,7 +18,8 @@ type (
 
 	// Product represents a single product with a name.
 	Product struct {
-		Name string `json:"name"`
+		Name  string  `json:"name"`
+		Price float64 `json:"price"`
 	}
 
 	// Products is a slice of Product structs.

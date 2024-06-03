@@ -8,10 +8,22 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// CustomValidator interface for custom validation logic
+type CustomValidator interface {
+	Validate() error
+}
+
 func Validation(form interface{}) error {
 	if _, err := govalidator.ValidateStruct(form); err != nil {
 		return err
 	}
+
+	if customValidator, ok := form.(CustomValidator); ok {
+		if err := customValidator.Validate(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
