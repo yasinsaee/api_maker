@@ -13,7 +13,7 @@ func BindStruct(g echo.Context, form interface{}, model interface{}) error {
 	}
 
 	if err := g.Validate(form); err != nil {
-		return errors.New("error in validation form")
+		return errors.New("error in validation form, error : " + err.Error())
 	}
 
 	jsonString, err := json.Marshal(form)
