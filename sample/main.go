@@ -10,7 +10,7 @@ func main() {
 	ec := echo.New()
 
 	proGP := ec.Group("/product")
-	apiService := apimaker.NewAPIService("product", *proGP, nil)
+	apiService := apimaker.NewAPIService("product", *proGP)
 
 	proGP.POST("/create", func(c echo.Context) error {
 		pro := new(product.Product)
