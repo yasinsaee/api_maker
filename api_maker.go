@@ -4,12 +4,22 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
 )
 
 type APIService struct {
 	Name      string
-	GroupName string
+	GroupName echo.Group
+	Validator *validator.Validate
+}
+
+func NewAPIService(name string, group_name echo.Group, validator *validator.Validate) *APIService {
+	return &APIService{
+		Name:      name,
+		GroupName: group_name,
+		Validator: validator,
+	}
 }
 
 func (a APIService) Create(c echo.Context, model Model, form Form) error {
@@ -37,6 +47,7 @@ func (a APIService) Create(c echo.Context, model Model, form Form) error {
 		MetaData{},
 	)
 }
+
 func (a APIService) Edit(c echo.Context, model Model, form Form) error {
 	var (
 		err error
