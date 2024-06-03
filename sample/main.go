@@ -19,16 +19,40 @@ func main() {
 	proGP := ec.Group("/product")
 	apiService := apimaker.NewAPIService("product", proGP, ec.Validator, ec.Logger)
 
+	u := new(custom.User)
+
 	proGP.POST("/create", func(c echo.Context) error {
 		pro := new(product.Product)
 		form := new(product.AddProductForm)
+
+		proType := c.QueryParam("type")
+
+		afterSave := apimaker.AfterSave{
+			Function: u.MyCustomAfterSaveFunction,
+			Params: []apimaker.Params{
+				{
+					Key:   "username",
+					Value: true,
+				},
+			},
+		}
+
+		beforeSave := apimaker.BeforeSave{
+			Function: custom.MyCustomBeforeSaveFunction,
+			Params: []apimaker.Params{
+				{
+					Key:   "proType",
+					Value: proType,
+				},
+			},
+		}
 
 		createServiceReq := apimaker.ServiceRequest{
 			Context:    c,
 			Model:      pro,
 			Form:       form,
-			AfterSave:  custom.MyCustomAfterSaveFunction,
-			BeforeSave: custom.MyCustomBeforeSaveFunction,
+			AfterSave:  afterSave,
+			BeforeSave: beforeSave,
 		}
 
 		return apiService.RequestService(apimaker.CreateServiceRequest, createServiceReq)

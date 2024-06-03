@@ -34,6 +34,7 @@ type ServiceRequest struct {
 	Form       Form
 	AfterSave  AfterSave
 	BeforeSave BeforeSave
+	CheckLogin CheckLogin
 }
 
 func (a APIService) RequestService(serviceType string, service ServiceRequest) error {
@@ -50,6 +51,12 @@ func (createService ServiceRequest) Create(a APIService) error {
 		err error
 	)
 
+	if createService.CheckLogin != nil {
+		if err = createService.CheckLogin(createService.Context, createService.Model); err != nil {
+			return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function checklogin, error : %s ", err.Error()))
+		}
+	}
+
 	if err = BindStruct(createService.Context, createService.Form, createService.Model); err != nil {
 		return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, "failed to bind form")
 	}
@@ -58,8 +65,8 @@ func (createService ServiceRequest) Create(a APIService) error {
 		return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, "failed to bind form data")
 	}
 
-	if createService.BeforeSave != nil {
-		if err = createService.BeforeSave(createService.Model); err != nil {
+	if createService.BeforeSave.Function != nil {
+		if err = createService.BeforeSave.Function(createService.Model, createService.BeforeSave.Params...); err != nil {
 			return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function beforesave, error : %s ", err.Error()))
 		}
 	}
@@ -68,8 +75,8 @@ func (createService ServiceRequest) Create(a APIService) error {
 		return a.ErrorResponse(createService.Context, http.StatusInternalServerError, err, fmt.Sprintf("cannot add %s", a.Name))
 	}
 
-	if createService.AfterSave != nil {
-		if err = createService.AfterSave(createService.Model); err != nil {
+	if createService.AfterSave.Function != nil {
+		if err = createService.AfterSave.Function(createService.Model, createService.AfterSave.Params...); err != nil {
 			return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function aftersave, error : %s ", err.Error()))
 		}
 	}

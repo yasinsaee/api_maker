@@ -1,5 +1,9 @@
 package apimaker
 
+import (
+	"github.com/labstack/echo/v4"
+)
+
 type Model interface {
 	Save() error
 	GetOne(id interface{}) error
@@ -8,7 +12,21 @@ type Model interface {
 	Remove(id interface{}) error
 }
 
+type Params struct {
+	Key   string
+	Value interface{}
+}
+
+type AfterSave struct {
+	Function func(model Model, params ...Params) error
+	Params   []Params
+}
+
+type BeforeSave struct {
+	Function func(model Model, params ...Params) error
+	Params   []Params
+}
+
 type (
-	AfterSave  func(model Model) error
-	BeforeSave func(model Model) error
+	CheckLogin func(c echo.Context, model Model) error
 )
