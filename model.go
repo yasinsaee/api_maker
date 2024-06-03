@@ -27,6 +27,7 @@ type BeforeSave struct {
 	Params   []Params
 }
 
-type (
-	CheckLogin func(c echo.Context, model Model) error
-)
+type Security struct {
+	Authenticator func(c echo.Context) (bool, error)
+	Authorizer    func(c echo.Context) (bool, error)
+}

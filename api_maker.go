@@ -34,7 +34,7 @@ type ServiceRequest struct {
 	Form       Form
 	AfterSave  AfterSave
 	BeforeSave BeforeSave
-	CheckLogin CheckLogin
+	Security   Security
 }
 
 func (a APIService) RequestService(serviceType string, service ServiceRequest) error {
@@ -51,11 +51,17 @@ func (createService ServiceRequest) Create(a APIService) error {
 		err error
 	)
 
-	if createService.CheckLogin != nil {
-		if err = createService.CheckLogin(createService.Context, createService.Model); err != nil {
-			return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function checklogin, error : %s ", err.Error()))
-		}
-	}
+	if createService.Security.Authenticator != nil {
+        if authenticated, err := createService.Security.Authenticator(createService.Context); err != nil || !authenticated {
+            return a.ErrorResponse(createService.Context, http.StatusUnauthorized, err, "authentication failed")
+        }
+    }
+
+    if createService.Security.Authorizer != nil {
+        if authorized, err := createService.Security.Authorizer(createService.Context); err != nil || !authorized {
+            return a.ErrorResponse(createService.Context, http.StatusForbidden, err, "authorization failed")
+        }
+    }
 
 	if err = BindStruct(createService.Context, createService.Form, createService.Model); err != nil {
 		return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, "failed to bind form")
