@@ -1,7 +1,7 @@
 package apimaker
 
 import (
-
+	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -24,31 +24,27 @@ type (
 	}
 )
 
-func CreateSuccessResponse(code int, message string, data interface{}) Response {
-	return Response{
-		SuccessMessage: message,
+// SuccessResponse handles sending success responses.
+func SuccessResponse(c echo.Context, code int, message string, data echo.Map, metaData MetaData) error {
+	resp := &Response{
 		Code:           code,
+		SuccessMessage: message,
 		Data:           data,
+		MetaData:       metaData,
 	}
-
+	return c.JSON(code, resp)
 }
 
-func CreateErrorResponse(code int, errorMessage string) Response {
-	return Response{
-		ErrorMessage: errorMessage,
+// ErrorResponse handles sending error responses.
+func ErrorResponse(c echo.Context, code int, err error, message string) error {
+	resp := &Response{
 		Code:         code,
+		ErrorMessage: message,
 	}
-}
-
-func NewMetaData(pagination Pagination, totalCounts, totalPages int) MetaData {
-	return MetaData{
-		Limit:       pagination.Limit,
-		TotalCounts: totalCounts,
-		TotalPages:  totalPages,
-		CurrentPage: pagination.Page,
-		NextPage:    pagination.Page + 1,
-		Sort:        pagination.Sort,
+	if err != nil {
+		resp.ErrorMessage = err.Error()
 	}
+	return c.JSON(code, resp)
 }
 
 func MongoErrorHandler(err error) (int, string) {

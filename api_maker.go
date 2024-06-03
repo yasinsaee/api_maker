@@ -7,22 +7,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Form interface {
-	Bind(Model) error
-}
-
-type Model interface {
-	Save() error
-	GetOne(id interface{}) error
-	//filter for filter, page filtering - totalCounts, totalPages, list , error
-	List(filter Filter, pfilter Pagination) (int, int, interface{}, error)
-	Remove(id interface{}) error
-}
-
-type Filter interface {
-	GetFilters() map[string]interface{}
-}
-
 type APIService struct {
 	Name      string
 	GroupName string
@@ -33,153 +17,108 @@ func (a APIService) Create(c echo.Context, model Model, form Form) error {
 		err error
 	)
 
-	resp := new(Response)
-
 	if err = BindStruct(c, form, model); err != nil {
-		resp.ErrorMessage = err.Error()
-		resp.Code = http.StatusBadRequest
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form")
 	}
 
 	if err = form.Bind(model); err != nil {
-		resp.ErrorMessage = err.Error()
-		resp.Code = http.StatusBadRequest
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form data")
 	}
 
 	if err := model.Save(); err != nil {
-		resp.Code = http.StatusInternalServerError
-		resp.ErrorMessage = fmt.Sprintf("Can not add %s", a.Name)
-		return c.JSON(http.StatusInternalServerError, resp)
+		return ErrorResponse(c, http.StatusInternalServerError, err, fmt.Sprintf("cannot add %s", a.Name))
 	}
 
-	resp.SuccessMessage = fmt.Sprintf("Successfully added %s", a.Name)
-	resp.Code = http.StatusOK
-	resp.Data = echo.Map{
-		a.Name: model,
-	}
-	return c.JSON(http.StatusOK, resp)
+	return SuccessResponse(
+		c,
+		http.StatusOK,
+		fmt.Sprintf("successfully added %s", a.Name),
+		echo.Map{a.Name: model},
+		MetaData{},
+	)
 }
-
 func (a APIService) Edit(c echo.Context, model Model, form Form) error {
 	var (
 		err error
 	)
 
 	id := c.Param("id")
-	resp := new(Response)
 
 	if err = model.GetOne(id); err != nil {
-		resp.Code = http.StatusBadRequest
-		resp.ErrorMessage = fmt.Sprintf("can not find any %s", a.Name)
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
 
 	if err = BindStruct(c, form, model); err != nil {
-		resp.ErrorMessage = err.Error()
-		resp.Code = http.StatusBadRequest
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form")
 	}
 
 	if err = form.Bind(model); err != nil {
-		resp.ErrorMessage = err.Error()
-		resp.Code = http.StatusBadRequest
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form data")
 	}
 
-	if err := model.Save(); err != nil {
-		resp.Code = http.StatusInternalServerError
-		resp.ErrorMessage = fmt.Sprintf("Can not edit %s", a.Name)
-		return c.JSON(http.StatusInternalServerError, resp)
+	if err = model.Save(); err != nil {
+		return ErrorResponse(c, http.StatusInternalServerError, err, fmt.Sprintf("cannot edit %s", a.Name))
 	}
 
-	resp.SuccessMessage = fmt.Sprintf("Successfully edit %s", a.Name)
-	resp.Code = http.StatusOK
-	resp.Data = echo.Map{
-		a.Name: model,
-	}
-	return c.JSON(http.StatusOK, resp)
+	return SuccessResponse(c, http.StatusOK, fmt.Sprintf("successfully edited %s", a.Name), echo.Map{a.Name: model}, MetaData{})
 }
 
+// View handles retrieving a single model.
 func (a APIService) View(c echo.Context, model Model) error {
 	var (
 		err error
 	)
 
-	resp := new(Response)
-
 	id := c.Param("id")
 
 	if err = model.GetOne(id); err != nil {
-		resp.Code = http.StatusBadRequest
-		resp.ErrorMessage = fmt.Sprintf("can not find any %s", a.Name)
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
 
-	resp.SuccessMessage = fmt.Sprintf("Successfully load %s", a.Name)
-	resp.Code = http.StatusOK
-	resp.Data = echo.Map{
-		a.Name: model,
-	}
-	return c.JSON(http.StatusOK, resp)
+	return SuccessResponse(c, http.StatusOK, fmt.Sprintf("successfully loaded %s", a.Name), echo.Map{a.Name: model}, MetaData{})
 }
 
+// List handles listing models with pagination and filtering.
 func (a APIService) List(c echo.Context, model Model, filter Filter) error {
 	var (
-		err                     error
-		totalCounts, totalPages int
-		list                    interface{}
+		err error
 	)
-
-	resp := new(Response)
 
 	pfilter, _ := SetPagination(c, false)
 
-	if err = c.Bind(filter); err != nil {
-		resp.Code = http.StatusBadRequest
-		resp.ErrorMessage = fmt.Sprintf("can not bind %s filter", a.Name)
-		return c.JSON(http.StatusBadRequest, resp)
+	if err := c.Bind(filter); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot bind %s filter", a.Name))
 	}
 
-	if totalCounts, totalPages, list, err = model.List(filter, pfilter); err != nil {
-		resp.Code = http.StatusBadRequest
-		resp.ErrorMessage = fmt.Sprintf("can not find any %s", a.Name)
-		return c.JSON(http.StatusBadRequest, resp)
+	totalCounts, totalPages, list, err := model.List(filter, pfilter)
+	if err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
-	resp.SuccessMessage = fmt.Sprintf("Successfully loaded %s list", a.Name)
-	resp.Code = http.StatusOK
-	resp.Data = echo.Map{
+
+	return SuccessResponse(c, http.StatusOK, fmt.Sprintf("successfully loaded %s list", a.Name), echo.Map{
 		a.Name + "s":   list,
 		"total_counts": totalCounts,
 		"total_pages":  totalPages,
-	}
-	resp.MetaData = MetaData{
+	}, MetaData{
 		Limit:       pfilter.Limit,
 		CurrentPage: pfilter.Page,
 		TotalCounts: totalCounts,
 		TotalPages:  totalPages,
 		Sort:        pfilter.Sort,
-	}
-
-	return c.JSON(http.StatusOK, resp)
+	})
 }
 
+// Delete handles deleting a model.
 func (a APIService) Delete(c echo.Context, model Model) error {
 	var (
 		err error
 	)
 
-	resp := new(Response)
-
 	id := c.Param("id")
 
 	if err = model.Remove(id); err != nil {
-		resp.Code = http.StatusBadRequest
-		resp.ErrorMessage = fmt.Sprintf("can not find any %s", a.Name)
-		return c.JSON(http.StatusBadRequest, resp)
+		return ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
 
-	resp.SuccessMessage = "Successfully remove"
-	resp.Code = http.StatusOK
-	return c.JSON(http.StatusOK, resp)
+	return SuccessResponse(c, http.StatusOK, "successfully removed", nil, MetaData{})
 }
