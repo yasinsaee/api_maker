@@ -2,7 +2,6 @@ package apimaker
 
 import (
 	"github.com/labstack/echo/v4"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type (
@@ -36,44 +35,18 @@ func SuccessResponse(c echo.Context, code int, message string, data echo.Map, me
 }
 
 // ErrorResponse handles sending error responses.
-func ErrorResponse(c echo.Context, code int, err error, message string) error {
+func (a *APIService) ErrorResponse(c echo.Context, code int, err error, message string) error {
+
+	a.Logger.Errorf("%s: %v", message, err)
+
 	resp := &Response{
 		Code:         code,
 		ErrorMessage: message,
 	}
+
 	if err != nil {
 		resp.ErrorMessage = err.Error()
 	}
+
 	return c.JSON(code, resp)
-}
-
-func MongoErrorHandler(err error) (int, string) {
-	switch err {
-	case mongo.ErrNoDocuments:
-		return 404, "not found"
-	default:
-		return 500, "internal server error"
-	}
-}
-
-func ToMap(key string, value interface{}) (res []map[string]interface{}) {
-	switch v := value.(type) {
-	case string:
-		res = append(res, map[string]interface{}{
-			key: v,
-		})
-	case []string:
-		for _, v := range v {
-			res = append(res, map[string]interface{}{
-				key: v,
-			})
-		}
-	case []interface{}:
-		for _, v := range v {
-			res = append(res, map[string]interface{}{
-				key: v,
-			})
-		}
-	}
-	return res
 }

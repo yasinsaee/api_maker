@@ -10,7 +10,7 @@ func main() {
 	ec := echo.New()
 
 	proGP := ec.Group("/product")
-	apiService := apimaker.NewAPIService("product", *proGP)
+	apiService := apimaker.NewAPIService("product", proGP, ec.Validator, ec.Logger)
 
 	proGP.POST("/create", func(c echo.Context) error {
 		pro := new(product.Product)
@@ -59,5 +59,5 @@ func main() {
 		return nil
 	})
 
-	ec.Start(":1111")
+	ec.Logger.Fatal(ec.Start(":1111"))
 }

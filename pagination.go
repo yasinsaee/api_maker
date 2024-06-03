@@ -28,7 +28,7 @@ func SetPagination(c echo.Context, unlimited bool) (Pagination, error) {
 	}
 
 	if pag.Sort == "" {
-		pag.Sort = "-created_at"
+		pag.Sort = ""
 	}
 
 	return *pag, nil
