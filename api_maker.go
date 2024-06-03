@@ -41,7 +41,7 @@ func (a APIService) RequestService(serviceType string, service ServiceRequest) e
 	if serviceType == CreateServiceRequest {
 		return service.Create(a)
 	} else if serviceType == UpdateServiceRequest {
-		// return service.Create(a)
+		return service.Edit(a)
 	}
 	return errors.New("please select a service type")
 }
@@ -52,16 +52,16 @@ func (createService ServiceRequest) Create(a APIService) error {
 	)
 
 	if createService.Security.Authenticator != nil {
-        if authenticated, err := createService.Security.Authenticator(createService.Context); err != nil || !authenticated {
-            return a.ErrorResponse(createService.Context, http.StatusUnauthorized, err, "authentication failed")
-        }
-    }
+		if authenticated, err := createService.Security.Authenticator(createService.Context); err != nil || !authenticated {
+			return a.ErrorResponse(createService.Context, http.StatusUnauthorized, err, "authentication failed")
+		}
+	}
 
-    if createService.Security.Authorizer != nil {
-        if authorized, err := createService.Security.Authorizer(createService.Context); err != nil || !authorized {
-            return a.ErrorResponse(createService.Context, http.StatusForbidden, err, "authorization failed")
-        }
-    }
+	if createService.Security.Authorizer != nil {
+		if authorized, err := createService.Security.Authorizer(createService.Context); err != nil || !authorized {
+			return a.ErrorResponse(createService.Context, http.StatusForbidden, err, "authorization failed")
+		}
+	}
 
 	if err = BindStruct(createService.Context, createService.Form, createService.Model); err != nil {
 		return a.ErrorResponse(createService.Context, http.StatusBadRequest, err, "failed to bind form")
@@ -96,30 +96,54 @@ func (createService ServiceRequest) Create(a APIService) error {
 	)
 }
 
-func (a APIService) Edit(c echo.Context, model Model, form Form) error {
+func (updateService ServiceRequest) Edit(a APIService) error {
 	var (
 		err error
 	)
 
-	id := c.Param("id")
+	id := updateService.Context.Param("id")
 
-	if err = model.GetOne(id); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
+	if updateService.Security.Authenticator != nil {
+		if authenticated, err := updateService.Security.Authenticator(updateService.Context); err != nil || !authenticated {
+			return a.ErrorResponse(updateService.Context, http.StatusUnauthorized, err, "authentication failed")
+		}
 	}
 
-	if err = BindStruct(c, form, model); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form")
+	if updateService.Security.Authorizer != nil {
+		if authorized, err := updateService.Security.Authorizer(updateService.Context); err != nil || !authorized {
+			return a.ErrorResponse(updateService.Context, http.StatusForbidden, err, "authorization failed")
+		}
 	}
 
-	if err = form.Bind(model); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, "failed to bind form data")
+	if err = updateService.Model.GetOne(id); err != nil {
+		return a.ErrorResponse(updateService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
 
-	if err = model.Save(); err != nil {
-		return a.ErrorResponse(c, http.StatusInternalServerError, err, fmt.Sprintf("cannot edit %s", a.Name))
+	if err = BindStruct(updateService.Context, updateService.Form, updateService.Model); err != nil {
+		return a.ErrorResponse(updateService.Context, http.StatusBadRequest, err, "failed to bind form")
 	}
 
-	return SuccessResponse(c, http.StatusOK, fmt.Sprintf("successfully edited %s", a.Name), echo.Map{a.Name: model}, MetaData{})
+	if err = updateService.Form.Bind(updateService.Model); err != nil {
+		return a.ErrorResponse(updateService.Context, http.StatusBadRequest, err, "failed to bind form data")
+	}
+
+	if updateService.BeforeSave.Function != nil {
+		if err = updateService.BeforeSave.Function(updateService.Model, updateService.BeforeSave.Params...); err != nil {
+			return a.ErrorResponse(updateService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function beforesave, error : %s ", err.Error()))
+		}
+	}
+
+	if err = updateService.Model.Save(); err != nil {
+		return a.ErrorResponse(updateService.Context, http.StatusInternalServerError, err, fmt.Sprintf("cannot edit %s", a.Name))
+	}
+
+	if updateService.AfterSave.Function != nil {
+		if err = updateService.AfterSave.Function(updateService.Model, updateService.AfterSave.Params...); err != nil {
+			return a.ErrorResponse(updateService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function aftersave, error : %s ", err.Error()))
+		}
+	}
+
+	return SuccessResponse(updateService.Context, http.StatusOK, fmt.Sprintf("successfully edited %s", a.Name), echo.Map{a.Name: updateService.Model}, MetaData{})
 }
 
 // View handles retrieving a single model.

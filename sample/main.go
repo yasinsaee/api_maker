@@ -62,7 +62,13 @@ func main() {
 		pro := new(product.Product)
 		form := new(product.AddProductForm)
 
-		if err := apiService.Edit(c, pro, form); err != nil {
+		updateServiceReq := apimaker.ServiceRequest{
+			Context: c,
+			Model:   pro,
+			Form:    form,
+		}
+
+		if err := apiService.RequestService(apimaker.UpdateServiceRequest, updateServiceReq); err != nil {
 			return err
 		}
 		return nil
