@@ -243,23 +243,48 @@ func (viewService ViewServiceRequest) View(a APIService) error {
 }
 
 // List handles listing models with pagination and filtering.
-func (a APIService) List(c echo.Context, model Model, filter Filter) error {
+func (listService ListServiceRequest) List(a APIService) error {
 	var (
 		err error
 	)
 
-	pfilter, _ := SetPagination(c, false)
+	pfilter, _ := SetPagination(listService.Context)
 
-	if err := c.Bind(filter); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot bind %s filter", a.Name))
+	if listService.Security.Authenticator != nil {
+		if authenticated, err := listService.Security.Authenticator(listService.Context); err != nil || !authenticated {
+			return a.ErrorResponse(listService.Context, http.StatusUnauthorized, err, "authentication failed")
+		}
 	}
 
-	totalCounts, totalPages, list, err := model.List(filter, pfilter)
+	// Step 3: Authorization
+	if listService.Security.Authorizer != nil {
+		if authorized, err := listService.Security.Authorizer(listService.Context); err != nil || !authorized {
+			return a.ErrorResponse(listService.Context, http.StatusForbidden, err, "authorization failed")
+		}
+	}
+
+	if err := listService.Context.Bind(listService.Filters); err != nil {
+		return a.ErrorResponse(listService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot bind %s filter", a.Name))
+	}
+
+	if listService.BeforeGetList.Function != nil {
+		if err = listService.BeforeGetList.Function(listService.Model, listService.BeforeGetList.Params...); err != nil {
+			return a.ErrorResponse(listService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function before get list, error : %s ", err.Error()))
+		}
+	}
+
+	totalCounts, totalPages, list, err := listService.Model.List(listService.Filters, pfilter)
 	if err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
+		return a.ErrorResponse(listService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
 
-	return SuccessResponse(c, http.StatusOK, fmt.Sprintf("successfully loaded %s list", a.Name), echo.Map{
+	if listService.AfterGetList.Function != nil {
+		if err = listService.AfterGetList.Function(listService.Model, listService.AfterGetList.Params...); err != nil {
+			return a.ErrorResponse(listService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function after get list, error : %s ", err.Error()))
+		}
+	}
+
+	return SuccessResponse(listService.Context, http.StatusOK, fmt.Sprintf("successfully loaded %s list", a.Name), echo.Map{
 		a.Name + "s":   list,
 		"total_counts": totalCounts,
 		"total_pages":  totalPages,

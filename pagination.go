@@ -1,15 +1,19 @@
 package apimaker
 
-import "github.com/labstack/echo/v4"
+import (
+	"strconv"
+
+	"github.com/labstack/echo/v4"
+)
 
 type Pagination struct {
 	Limit     int    `query:"limit"`
 	Page      int    `query:"page"`
 	Sort      string `query:"sort"`
-	Unlimited bool
+	Unlimited string `query:"unlimited"`
 }
 
-func SetPagination(c echo.Context, unlimited bool) (Pagination, error) {
+func SetPagination(c echo.Context) (Pagination, error) {
 	pag := new(Pagination)
 	if err := c.Bind(pag); err != nil {
 		return *pag, err
@@ -19,7 +23,7 @@ func SetPagination(c echo.Context, unlimited bool) (Pagination, error) {
 		pag.Limit = 10
 	}
 
-	if unlimited {
+	if ok, _ := strconv.ParseBool(pag.Unlimited); ok {
 		pag.Limit = -1
 	}
 

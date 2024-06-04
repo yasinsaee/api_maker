@@ -84,7 +84,24 @@ func main() {
 		pro := new(product.Product)
 		filter := new(product.ProductFilter)
 
-		if err := apiService.List(c, pro, filter); err != nil {
+		listServiceReq := apimaker.ListServiceRequest{
+			BaseServiceRequest: apimaker.BaseServiceRequest{
+				Context:  c,
+				Model:    pro,
+				Security: apimaker.Security{},
+			},
+			Pagination: apimaker.Pagination{
+				Limit:     10, //default is 10
+				Page:      1,
+				Sort:      "",
+				Unlimited: "false",
+			},
+			Filters:       filter,
+			BeforeGetList: apimaker.CreateFunc{}, //optional
+			AfterGetList:  apimaker.CreateFunc{}, //optional
+		}.List(*apiService)
+
+		if err := listServiceReq; err != nil {
 			return err
 		}
 		return nil

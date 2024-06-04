@@ -28,8 +28,10 @@ type UpdateServiceRequest struct {
 // ListServiceRequest defines the structure for a service request used for listing resources.
 type ListServiceRequest struct {
 	BaseServiceRequest
-	Pagination Pagination
-	Filters    Filter
+	Pagination    Pagination
+	Filters       Filter
+	BeforeGetList CreateFunc
+	AfterGetList  CreateFunc
 }
 
 // ViewServiceRequest defines the structure for a service request used for viewing a single resource.

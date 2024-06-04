@@ -41,6 +41,6 @@ func (a AddProductForm) Bind(model apimaker.Model) error {
 	}
 
 	// Bind the form data to the Product model
-	product.Name = a.Name
+	product.Name = "yasin"
 	return nil
 }
