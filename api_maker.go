@@ -5,7 +5,6 @@
 package apimaker
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -40,39 +39,6 @@ func NewAPIService(name string, group *echo.Group, validator echo.Validator, log
 	}
 }
 
-// ServiceType defines the structure for a service type, containing its name.
-type ServiceType struct {
-	Name string
-}
-
-// ServiceRequest defines the structure for a service request, containing
-// context, model, form, after save hook, before save hook, and security.
-type ServiceRequest struct {
-	Context    echo.Context
-	Model      Model
-	Form       Form
-	AfterSave  AfterSave
-	BeforeSave BeforeSave
-	Security   Security
-}
-
-// RequestService handles a service request based on the provided service type.
-//
-// Parameters:
-// - serviceType: The type of service request (e.g., CreateServiceRequest, UpdateServiceRequest).
-// - service: The service request containing context, model, form, hooks, and security.
-//
-// Returns:
-// - error: An error if the service type is not recognized or if the service request fails.
-func (a APIService) RequestService(serviceType string, service ServiceRequest) error {
-	if serviceType == CreateServiceRequest {
-		return service.Create(a)
-	} else if serviceType == UpdateServiceRequest {
-		return service.Edit(a)
-	}
-	return errors.New("please select a service type")
-}
-
 // Create handles the creation of a new resource in the API service.
 // It performs the following steps:
 // 1. Authentication: If an authenticator is provided, it checks if the request is authenticated.
@@ -89,7 +55,7 @@ func (a APIService) RequestService(serviceType string, service ServiceRequest) e
 //
 // Returns:
 // - error: An error if any step fails; otherwise, nil.
-func (createService ServiceRequest) Create(a APIService) error {
+func (createService CreateServiceRequest) Create(a APIService) error {
 	var (
 		err error
 	)
@@ -164,7 +130,7 @@ func (createService ServiceRequest) Create(a APIService) error {
 //
 // Returns:
 // - error: An error if any step fails; otherwise, nil.
-func (updateService ServiceRequest) Edit(a APIService) error {
+func (updateService UpdateServiceRequest) Edit(a APIService) error {
 	var (
 		err error
 	)
@@ -224,18 +190,36 @@ func (updateService ServiceRequest) Edit(a APIService) error {
 }
 
 // View handles retrieving a single model.
-func (a APIService) View(c echo.Context, model Model) error {
+func (viewService ViewServiceRequest) View(a APIService) error {
 	var (
 		err error
 	)
 
-	id := c.Param("id")
+	id := viewService.Context.Param("id")
 
-	if err = model.GetOne(id); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
+	if viewService.Security.Authenticator != nil {
+		if authenticated, err := viewService.Security.Authenticator(viewService.Context); err != nil || !authenticated {
+			return a.ErrorResponse(viewService.Context, http.StatusUnauthorized, err, "authentication failed")
+		}
 	}
 
-	return SuccessResponse(c, http.StatusOK, fmt.Sprintf("successfully loaded %s", a.Name), echo.Map{a.Name: model}, MetaData{})
+	if viewService.Security.Authorizer != nil {
+		if authorized, err := viewService.Security.Authorizer(viewService.Context); err != nil || !authorized {
+			return a.ErrorResponse(viewService.Context, http.StatusForbidden, err, "authorization failed")
+		}
+	}
+
+	if err = viewService.Model.GetOne(id); err != nil {
+		return a.ErrorResponse(viewService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
+	}
+
+	if viewService.AfterFind.Function != nil {
+		if err = viewService.AfterFind.Function(viewService.Model, viewService.AfterFind.Params...); err != nil {
+			return a.ErrorResponse(viewService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function aftersave, error : %s ", err.Error()))
+		}
+	}
+
+	return SuccessResponse(viewService.Context, http.StatusOK, fmt.Sprintf("successfully loaded %s", a.Name), echo.Map{a.Name: viewService.Model}, MetaData{})
 }
 
 // List handles listing models with pagination and filtering.

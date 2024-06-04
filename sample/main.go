@@ -27,7 +27,7 @@ func main() {
 
 		proType := c.QueryParam("type")
 
-		afterSave := apimaker.AfterSave{
+		afterSave := apimaker.CreateFunc{
 			Function: u.MyCustomAfterSaveFunction,
 			Params: []apimaker.Params{
 				{
@@ -37,7 +37,7 @@ func main() {
 			},
 		}
 
-		beforeSave := apimaker.BeforeSave{
+		beforeSave := apimaker.CreateFunc{
 			Function: custom.MyCustomBeforeSaveFunction,
 			Params: []apimaker.Params{
 				{
@@ -47,28 +47,34 @@ func main() {
 			},
 		}
 
-		createServiceReq := apimaker.ServiceRequest{
-			Context:    c,
-			Model:      pro,
+		createServiceReq := apimaker.CreateServiceRequest{
+			BaseServiceRequest: apimaker.BaseServiceRequest{
+				Context:  c,
+				Model:    pro,
+				Security: apimaker.Security{},
+			},
 			Form:       form,
 			AfterSave:  afterSave,
 			BeforeSave: beforeSave,
 		}
 
-		return apiService.RequestService(apimaker.CreateServiceRequest, createServiceReq)
+		return createServiceReq.Create(*apiService)
 	})
 
 	proGP.PUT("/edit/:id", func(c echo.Context) error {
 		pro := new(product.Product)
 		form := new(product.AddProductForm)
 
-		updateServiceReq := apimaker.ServiceRequest{
-			Context: c,
-			Model:   pro,
-			Form:    form,
+		updateServiceReq := apimaker.UpdateServiceRequest{
+			BaseServiceRequest: apimaker.BaseServiceRequest{
+				Context:  c,
+				Model:    pro,
+				Security: apimaker.Security{},
+			},
+			Form: form,
 		}
 
-		if err := apiService.RequestService(apimaker.UpdateServiceRequest, updateServiceReq); err != nil {
+		if err := updateServiceReq.Edit(*apiService); err != nil {
 			return err
 		}
 		return nil
@@ -87,9 +93,18 @@ func main() {
 	proGP.GET("/view/:id", func(c echo.Context) error {
 		pro := new(product.Product)
 
-		if err := apiService.View(c, pro); err != nil {
+		viewServiceReq := apimaker.ViewServiceRequest{
+			BaseServiceRequest: apimaker.BaseServiceRequest{
+				Context:  c,
+				Model:    pro,
+				Security: apimaker.Security{},
+			},
+		}.View(*apiService)
+
+		if err := viewServiceReq; err != nil {
 			return err
 		}
+
 		return nil
 	})
 

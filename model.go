@@ -17,12 +17,7 @@ type Params struct {
 	Value interface{}
 }
 
-type AfterSave struct {
-	Function func(model Model, params ...Params) error
-	Params   []Params
-}
-
-type BeforeSave struct {
+type CreateFunc struct {
 	Function func(model Model, params ...Params) error
 	Params   []Params
 }
