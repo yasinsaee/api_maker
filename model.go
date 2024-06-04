@@ -12,6 +12,8 @@ type Model interface {
 	Remove(id interface{}) error
 }
 
+type Models []Model
+
 type Params struct {
 	Key   string
 	Value interface{}

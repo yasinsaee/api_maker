@@ -48,7 +48,12 @@ func (p Product) List(filter apimaker.Filter, pagination apimaker.Pagination) (i
 	// TODO: Implement your listing logic here
 	// Example: Retrieve a list of products from the database
 	// Return totalCounts, totalPages, list of products, and an error if any
-	return 0, 0, nil, nil
+
+	totalCounts := 0
+	totalPages := 0
+	products := []Product{}
+
+	return totalCounts, totalPages, products, nil
 }
 
 // Remove deletes a product from the database by its ID.
