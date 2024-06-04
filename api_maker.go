@@ -190,35 +190,55 @@ func (updateService UpdateServiceRequest) Edit(a APIService) error {
 }
 
 // View handles retrieving a single model.
+// It performs the following steps:
+// 1. Extract ID: Retrieves the ID of the model to be viewed from the context parameters.
+// 2. Authentication: If an authenticator is provided, it checks if the request is authenticated.
+// 3. Authorization: If an authorizer is provided, it checks if the request is authorized.
+// 4. Retrieve Model: It retrieves the model from the database using its ID.
+// 5. After Find Hook: It calls an optional after find function to perform any post-find operations.
+// 6. Success Response: It returns a success response with the retrieved model.
+//
+// Parameters:
+// - viewService: A ViewServiceRequest struct containing the context, model, security handlers, and after find hook.
+// - a: An APIService interface providing methods for error and success responses.
+//
+// Returns:
+// - error: An error if any step fails; otherwise, nil.
 func (viewService ViewServiceRequest) View(a APIService) error {
 	var (
 		err error
 	)
 
+	// Step 1: Extract ID
 	id := viewService.Context.Param("id")
 
+	// Step 2: Authentication
 	if viewService.Security.Authenticator != nil {
 		if authenticated, err := viewService.Security.Authenticator(viewService.Context); err != nil || !authenticated {
 			return a.ErrorResponse(viewService.Context, http.StatusUnauthorized, err, "authentication failed")
 		}
 	}
 
+	// Step 3: Authorization
 	if viewService.Security.Authorizer != nil {
 		if authorized, err := viewService.Security.Authorizer(viewService.Context); err != nil || !authorized {
 			return a.ErrorResponse(viewService.Context, http.StatusForbidden, err, "authorization failed")
 		}
 	}
 
+	// Step 4: Retrieve Model
 	if err = viewService.Model.GetOne(id); err != nil {
 		return a.ErrorResponse(viewService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
 	}
 
+	// Step 5: After Find Hook
 	if viewService.AfterFind.Function != nil {
 		if err = viewService.AfterFind.Function(viewService.Model, viewService.AfterFind.Params...); err != nil {
-			return a.ErrorResponse(viewService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function aftersave, error : %s ", err.Error()))
+			return a.ErrorResponse(viewService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function after find, error : %s ", err.Error()))
 		}
 	}
 
+	// Step 6: Success Response
 	return SuccessResponse(viewService.Context, http.StatusOK, fmt.Sprintf("successfully loaded %s", a.Name), echo.Map{a.Name: viewService.Model}, MetaData{})
 }
 
@@ -253,16 +273,62 @@ func (a APIService) List(c echo.Context, model Model, filter Filter) error {
 }
 
 // Delete handles deleting a model.
-func (a APIService) Delete(c echo.Context, model Model) error {
+// It performs the following steps:
+// 1. Extract ID: Retrieves the ID of the model to be deleted from the context parameters.
+// 2. Authentication: If an authenticator is provided, it checks if the request is authenticated.
+// 3. Authorization: If an authorizer is provided, it checks if the request is authorized.
+// 4. Before Remove Hook: It calls an optional before remove function to perform any pre-remove operations.
+// 5. Remove Model: It removes the model from the database.
+// 6. After Remove Hook: It calls an optional after remove function to perform any post-remove operations.
+// 7. Success Response: It returns a success response if the model is successfully removed.
+//
+// Parameters:
+// - deleteService: A DeleteServiceRequest struct containing the context, model, security handlers, and hooks.
+// - a: An APIService interface providing methods for error and success responses.
+//
+// Returns:
+// - error: An error if any step fails; otherwise, nil.
+func (deleteService DeleteServiceRequest) Delete(a APIService) error {
 	var (
 		err error
 	)
 
-	id := c.Param("id")
+	// Step 1: Extract ID
+	id := deleteService.Context.Param("id")
 
-	if err = model.Remove(id); err != nil {
-		return a.ErrorResponse(c, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
+	// Step 2: Authentication
+	if deleteService.Security.Authenticator != nil {
+		if authenticated, err := deleteService.Security.Authenticator(deleteService.Context); err != nil || !authenticated {
+			return a.ErrorResponse(deleteService.Context, http.StatusUnauthorized, err, "authentication failed")
+		}
 	}
 
-	return SuccessResponse(c, http.StatusOK, "successfully removed", nil, MetaData{})
+	// Step 3: Authorization
+	if deleteService.Security.Authorizer != nil {
+		if authorized, err := deleteService.Security.Authorizer(deleteService.Context); err != nil || !authorized {
+			return a.ErrorResponse(deleteService.Context, http.StatusForbidden, err, "authorization failed")
+		}
+	}
+
+	// Step 4: Before Remove Hook
+	if deleteService.BeforeRemove.Function != nil {
+		if err = deleteService.BeforeRemove.Function(deleteService.Model, deleteService.BeforeRemove.Params...); err != nil {
+			return a.ErrorResponse(deleteService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function before remove, error : %s ", err.Error()))
+		}
+	}
+
+	// Step 5: Remove Model
+	if err = deleteService.Model.Remove(id); err != nil {
+		return a.ErrorResponse(deleteService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot find any %s", a.Name))
+	}
+
+	// Step 6: After Remove Hook
+	if deleteService.AfterRemove.Function != nil {
+		if err = deleteService.AfterRemove.Function(deleteService.Model, deleteService.AfterRemove.Params...); err != nil {
+			return a.ErrorResponse(deleteService.Context, http.StatusBadRequest, err, fmt.Sprintf("cannot use function after remove, error : %s ", err.Error()))
+		}
+	}
+
+	// Step 7: Success Response
+	return SuccessResponse(deleteService.Context, http.StatusOK, "successfully removed", nil, MetaData{})
 }

@@ -41,4 +41,6 @@ type ViewServiceRequest struct {
 // DeleteServiceRequest defines the structure for a service request used for deleting a resource.
 type DeleteServiceRequest struct {
 	BaseServiceRequest
+	BeforeRemove CreateFunc
+	AfterRemove  CreateFunc
 }

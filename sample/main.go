@@ -110,7 +110,18 @@ func main() {
 
 	proGP.DELETE("/delete/:id", func(c echo.Context) error {
 		pro := new(product.Product)
-		if err := apiService.Delete(c, pro); err != nil {
+
+		deleteServiceReq := apimaker.DeleteServiceRequest{
+			BaseServiceRequest: apimaker.BaseServiceRequest{
+				Context:  c,
+				Model:    pro,
+				Security: apimaker.Security{}, //optional
+			},
+			BeforeRemove: apimaker.CreateFunc{}, //optional
+			AfterRemove:  apimaker.CreateFunc{}, // optional
+		}.Delete(*apiService)
+
+		if err := deleteServiceReq; err != nil {
 			return err
 		}
 		return nil
